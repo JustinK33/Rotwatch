@@ -5,6 +5,9 @@ services:
       POSTGRES_USER: linkcheck
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?set it in .env}
       POSTGRES_DB: linkcheck
+    ports:
+      # api.py and worker.py keep the monitor tables in this database
+      - "${POSTGRES_PORT:-5432}:5432"
     volumes:
       - pgdata:/var/lib/postgresql/data
     healthcheck:
@@ -26,8 +29,14 @@ services:
     environment:
       CONDUIT_POSTGRES_DSN: postgres://linkcheck:${POSTGRES_PASSWORD}@postgres:5432/linkcheck?sslmode=disable
       CONDUIT_API_KEYS: ${CONDUIT_API_KEY:?set it in .env}
-      # links are checked by worker.py, so keep the built in pool off that queue
+      # crawls and checks run in worker.py on queue monitor, the built in pool
+      # only sends the alert webhooks on queue default
       CONDUIT_WORKER_QUEUES: default
+      # local lab only: lets alert webhooks reach a receiver on your machine
+      CONDUIT_WEBHOOK_ALLOW_PRIVATE_NETWORKS: "true"
+    extra_hosts:
+      # Docker Desktop has this name already, Linux needs it spelled out
+      - "host.docker.internal:host-gateway"
     ports:
       - "${CONDUIT_PORT:-8080}:8080"
     depends_on:

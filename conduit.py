@@ -7,12 +7,13 @@ BASE_URL = os.environ.get("CONDUIT_URL", "http://localhost:8080")
 API_KEY = os.environ.get("CONDUIT_API_KEY", "")
 
 
-def call(path, body=None, timeout=30):
+def call(path, body=None, timeout=30, method="POST"):
+    data = json.dumps(body or {}).encode() if method == "POST" else None
     req = urllib.request.Request(
         BASE_URL + path,
-        data=json.dumps(body or {}).encode(),
+        data=data,
         headers={"Content-Type": "application/json", "Authorization": "Bearer " + API_KEY},
-        method="POST",
+        method=method,
     )
     try:
         with urllib.request.urlopen(req, timeout=timeout) as resp:

@@ -1,7 +1,0 @@
-https://www.python.org
-https://go.dev
-https://www.postgresql.org
-https://github.com/JustinK33/Conduit
-https://httpbin.org/status/404
-https://httpbin.org/status/503
-https://this-domain-does-not-exist.invalid
