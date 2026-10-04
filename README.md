@@ -75,6 +75,11 @@ The fix went into Conduit, along with a race where cancelling a job could overwr
 - The compose file sets `CONDUIT_WEBHOOK_ALLOW_PRIVATE_NETWORKS` so alerts can reach a receiver on your machine at `http://host.docker.internal:<port>/`.
   Do not copy that into a real deployment.
 
+## License
+
+MIT.
+See [LICENSE](LICENSE).
+
 ## Quick start
 
 You need Docker with compose and Python 3.9 or newer.
