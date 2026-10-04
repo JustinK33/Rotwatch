@@ -1,17 +1,20 @@
+name: rotwatch
+
 services:
   postgres:
     image: postgres:16-alpine
     environment:
-      POSTGRES_USER: linkcheck
+      POSTGRES_USER: rotwatch
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?set it in .env}
-      POSTGRES_DB: linkcheck
+      POSTGRES_DB: rotwatch
     ports:
-      # api.py and worker.py keep the monitor tables in this database
-      - "${POSTGRES_PORT:-5432}:5432"
+      # api.py and worker.py keep the monitor tables in this database,
+      # bound to localhost so nothing else on the network can reach it
+      - "127.0.0.1:${POSTGRES_PORT:-5432}:5432"
     volumes:
       - pgdata:/var/lib/postgresql/data
     healthcheck:
-      test: ["CMD", "pg_isready", "-U", "linkcheck"]
+      test: ["CMD", "pg_isready", "-U", "rotwatch"]
       interval: 2s
       retries: 15
 
@@ -19,7 +22,7 @@ services:
     image: ghcr.io/justink33/conduit:v0.5.0
     command: migrate
     environment:
-      CONDUIT_POSTGRES_DSN: postgres://linkcheck:${POSTGRES_PASSWORD}@postgres:5432/linkcheck?sslmode=disable
+      CONDUIT_POSTGRES_DSN: postgres://rotwatch:${POSTGRES_PASSWORD}@postgres:5432/rotwatch?sslmode=disable
     depends_on:
       postgres:
         condition: service_healthy
@@ -27,7 +30,7 @@ services:
   conduit:
     image: ghcr.io/justink33/conduit:v0.5.0
     environment:
-      CONDUIT_POSTGRES_DSN: postgres://linkcheck:${POSTGRES_PASSWORD}@postgres:5432/linkcheck?sslmode=disable
+      CONDUIT_POSTGRES_DSN: postgres://rotwatch:${POSTGRES_PASSWORD}@postgres:5432/rotwatch?sslmode=disable
       CONDUIT_API_KEYS: ${CONDUIT_API_KEY:?set it in .env}
       # crawls and checks run in worker.py on queue monitor, the built in pool
       # only sends the alert webhooks on queue default
@@ -38,7 +41,7 @@ services:
       # Docker Desktop has this name already, Linux needs it spelled out
       - "host.docker.internal:host-gateway"
     ports:
-      - "${CONDUIT_PORT:-8080}:8080"
+      - "127.0.0.1:${CONDUIT_PORT:-8080}:8080"
     depends_on:
       migrate:
         condition: service_completed_successfully

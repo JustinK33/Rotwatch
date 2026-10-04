@@ -1,5 +1,12 @@
+import contextlib
+import http.server
+import threading
 import unittest
+import urllib.error
+import urllib.request
+from unittest import mock
 
+import api
 from worker import classify, extract_links, spread_by_host
 
 
@@ -58,6 +65,47 @@ class SpreadByHostTest(unittest.TestCase):
     def test_host_ignores_port_and_case(self):
         offsets = [o for _, o in spread_by_host(["http://A.test:8080/", "http://a.test/"], 1)]
         self.assertEqual(offsets, [0, 1])
+
+
+class LocalOnlyTest(unittest.TestCase):
+    """The API has no auth, so a browser page must not be able to drive it."""
+
+    @classmethod
+    def setUpClass(cls):
+        # create_site rejects a missing url before it touches the database
+        cls.no_db = mock.patch.object(api.db, "connect", lambda: contextlib.nullcontext())
+        cls.no_db.start()
+        quiet = type("Quiet", (api.Handler,), {"log_message": lambda *a: None})
+        cls.server = http.server.ThreadingHTTPServer(("127.0.0.1", 0), quiet)
+        threading.Thread(target=cls.server.serve_forever, daemon=True).start()
+        cls.url = f"http://127.0.0.1:{cls.server.server_port}/sites"
+
+    @classmethod
+    def tearDownClass(cls):
+        cls.server.shutdown()
+        cls.server.server_close()
+        cls.no_db.stop()
+
+    def status(self, headers):
+        req = urllib.request.Request(self.url, data=b"{}", headers=headers, method="POST")
+        try:
+            with urllib.request.urlopen(req) as resp:
+                return resp.status
+        except urllib.error.HTTPError as e:
+            e.close()
+            return e.code
+
+    def test_rejects_a_foreign_host(self):
+        # what a DNS rebinding page sends
+        self.assertEqual(self.status({"Host": "evil.example", "Content-Type": "application/json"}), 403)
+
+    def test_rejects_a_non_json_post(self):
+        # a form or text/plain POST is what a page can send without a CORS preflight
+        self.assertEqual(self.status({"Content-Type": "text/plain"}), 415)
+
+    def test_lets_a_local_json_post_through(self):
+        # past the guard it fails on the missing url, not on the guard
+        self.assertEqual(self.status({"Content-Type": "application/json"}), 400)
 
 
 if __name__ == "__main__":

@@ -62,7 +62,7 @@ def spread_by_host(urls, delay):
 def fetch(url, limit=0):
     """Returns (status, body, final url after redirects). Raises OSError when no HTTP answer came back."""
     # GET rather than HEAD, plenty of sites answer HEAD with 403 or 405
-    req = urllib.request.Request(url, headers={"User-Agent": "conduit-linkcheck"})
+    req = urllib.request.Request(url, headers={"User-Agent": "rotwatch"})
     try:
         with urllib.request.urlopen(req, timeout=10) as resp:
             charset = resp.headers.get_content_charset() or "utf-8"

@@ -9,6 +9,7 @@ from conduit import call
 
 PORT = int(os.environ.get("MONITOR_PORT", "8000"))
 MAX_BODY = 64 * 1024
+LOCAL_HOSTS = ("localhost", "127.0.0.1")
 
 
 class HTTPError(Exception):
@@ -133,6 +134,7 @@ def route(conn, method, path, query, body):
 class Handler(http.server.BaseHTTPRequestHandler):
     def handle_any(self):
         try:
+            self.check_local()
             body = self.read_body()
             url = urllib.parse.urlsplit(self.path)
             with db.connect() as conn:
@@ -145,6 +147,16 @@ class Handler(http.server.BaseHTTPRequestHandler):
         self.send(status, resp)
 
     do_GET = do_POST = do_DELETE = handle_any
+
+    def check_local(self):
+        # there is no auth, so a web page in your browser must not be able to drive this:
+        # a Host check stops DNS rebinding, and requiring a json content type makes
+        # browsers send a CORS preflight, which this server never answers
+        host = urllib.parse.urlsplit("//" + (self.headers.get("Host") or "")).hostname
+        if host not in LOCAL_HOSTS:
+            raise HTTPError(403, "only local requests are allowed")
+        if self.command == "POST" and self.headers.get_content_type() != "application/json":
+            raise HTTPError(415, "content type must be application/json")
 
     def read_body(self):
         if self.command != "POST":
